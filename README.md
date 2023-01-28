@@ -27,19 +27,23 @@ Parameter list
 
 ## Upcoming Plans/Ideas
 
+### Alternative Midi gate -> CV modes
+
+Params for gate, trigger, and envelope modes already exist. Next step, add plumbing for generating and triggering envelopes.
+
 ### Alternative CV Output Modes
 
-Plumbing for these modes is already complete. Next step is to implement midi callbacks for the following parameters:
+Plumbing for these modes is already complete. Next step is to implement midi callbacks for:
 
-* `Midi -> CV > CV Output = 2 voices`
-* `Midi -> CV > CV Output = 4 pitches`
-* `Midi -> CV > CV Output = 4 gates`
-* `Midi -> CV > CV Output = 4 CCs`
+* `2 voices`
+* `4 pitches`
+* `4 gates`
+* `4 CCs`
 
 ### I^2C extensions
 
-* Just Friends
-* W/ maybe?
+* `Just Friends`
+* `W/` maybe?
 
 ### Script Midi Loopback
 
