@@ -11,6 +11,20 @@ Route midi messages from external devices into your modular system via the 4 cro
 3. On Norns, navigate to `System > Mods` and enable `Crovvverter`.
 4. Restart Norns and the mod will load.
 
+## How to use crovvverter
+
+Load a script of your choice via `Select >`. By loading a script, the mod will load up and add parameters in the `Parameters > Edit` menu.
+
+Parameter list
+
+| Item | Description |
+| ---- | ----------- |
+| `Reset Crow` | reruns crow.init(), useful if crow gets into a funky state. |
+| `Refresh midi devices` | manually refreshes the list of midi devices. |
+| `CV -> Midi` | Settings for generating midi messages from CV inputs on crow. |
+| `Midi -> CV` | Settings for generating CV from midi messages. |
+| `I^2C` | Settings for controlling I^2C devices from midi messages. |
+
 ## Upcoming Plans/Ideas
 
 ### Alternative CV Output Modes
@@ -21,6 +35,11 @@ Plumbing for these modes is already complete. Next step is to implement midi cal
 * `Midi -> CV > CV Output = 4 pitches`
 * `Midi -> CV > CV Output = 4 gates`
 * `Midi -> CV > CV Output = 4 CCs`
+
+### I^2C extensions
+
+* Just Friends
+* W/ maybe?
 
 ### Script Midi Loopback
 
