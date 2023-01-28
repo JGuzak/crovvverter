@@ -2,7 +2,7 @@
 
 This mod is a CV to Midi and Midi to CV converter for Crow.
 
-Route midi messages from external devices into your modular system via the 4 crow outputs. There are various modes for processing different sets of midi messages.
+Route midi messages from external devices into your modular system via the 4 crow outputs and generate midi messages from the 2 crow inputs. There are various modes for processing different sets of midi messages.
 
 ## Installing
 
