@@ -138,10 +138,10 @@ end
 -------------------------------------------
 -- Global Quantize param action callbacks
 function SetQuantizedScale()
-  local note = params:string("root_note")
+  local note = params:string("crovvverter_root_note")
   local scale = params:string("scale")
 
-  notesInScale = MusicUtil.generate_scale(params:get("root_note") % 12, scale)
+  notesInScale = MusicUtil.generate_scale(params:get("crovvverter_root_note") % 12, scale)
 end
 
 -------------------------------------------
