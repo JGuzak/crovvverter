@@ -35,7 +35,7 @@ local i2cOutputCallback = nil
 
 -- Midi to CV components
 local maxCvVoices = 1
-local midiSourceNoteQueue = {}
+local midiSourceActiveNotes = {}
 local lastTriggeredVoice = 0
 
 -- CV to Midi components
@@ -306,7 +306,7 @@ function SetCvOutputState()
     -- SetI2CMode()
     CrowResetOutputs()
 
-    -- not sure how to bind both cv and i2c output callbacks to midi source events
+    -- TODO: figure out how to bind both cv and i2c output callbacks to midi source events
     -- midiSourceDevice.event = function(x)
     --   -- attach CV output callback
     --   if cvOutputCallback ~= nil then
@@ -358,6 +358,28 @@ function SetGateMode()
 end
 
 -------------------------------------------
+-- Midi source note queue functions
+function DumpMidiNoteQueue(noteQueue)
+  noteQueue = nil
+  noteQueue = {}
+end
+
+function AddMsgToMidiNoteQueue(noteQueue, msg)
+  print("Adding "..msg.type.." "..msg.note.." "..msg.ch.." from note table.")
+  table.insert(noteQueue, msg)
+end
+
+function RemoveMsgFromMidiNoteQueue(noteQueue, msg)
+  for i in ipairs(noteQueue) do
+    if noteQueue[i].ch == msg.ch and noteQueue[i].note == msg.note then
+      print("Removing "..noteQueue[i].type.." "..noteQueue[i].note.." "..noteQueue[i].ch.." from note table.")
+      table.remove(noteQueue, i)
+      break
+    end
+  end
+end
+
+-------------------------------------------
 -- Callbacks for processing midi notes
 function ProcessMidiToCv1Voice(data)
   local msg = midi.to_msg(data)
@@ -372,10 +394,10 @@ function ProcessMidiToCv1Voice(data)
 
     if msg.type:find("on") then
       crow.output[2].volts = 5
-      print(msg.type.." "..msg.note.. " "..msg.ch)
+      AddMsgToMidiNoteQueue(midiSourceActiveNotes, msg)
     else
       crow.output[2].volts = 0
-      print(msg.type.." "..msg.note.. " "..msg.ch)
+      RemoveMsgFromMidiNoteQueue(midiSourceActiveNotes, msg)
     end
   elseif msg.type == "cc" then
     if msg.cc == params:get("midi_to_cv_cc_3") then
@@ -396,14 +418,9 @@ function ProcessMidiToCv2Voices(data)
   end
 
   if msg.type:find("on") then
-    table.insert(midiSourceNoteQueue, msg)
+    AddMsgToMidiNoteQueue(midiSourceActiveNotes, msg)
   elseif msg.type:find("off") then
-    local siblingNoteMessage = msg
-    siblingNoteMessage.type = "note_on"
-    if tabUtil.contains(midiSourceNoteQueue, siblingNoteMessage) then
-      table.remove(midiSourceNoteQueue, siblingNoteMessage)
-      print("found and removed note from midiSourceNoteQueue")
-    end
+    RemoveMsgFromMidiNoteQueue(midiSourceActiveNotes, msg)
   end
 
   if lastTriggeredVoice <= maxCvVoices then
@@ -429,6 +446,8 @@ function SetCvOutputMode()
     print("Failed to set CV output mode midi source device is nil")
     return
   end
+
+  DumpMidiNoteQueue(midiSourceActiveNotes)
 
   local cvOutputMode = params:string("midi_to_cv_mode")
   cvOutputCallback = nil
@@ -481,4 +500,6 @@ mod.hook.register("script_pre_init", "crovvverter_script_pre_init", function()
 
   SetCvOutputState()
   SetCvInputState()
+
+  params:set("midi_to_cv_mode", "2 voices")
 end)
