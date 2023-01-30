@@ -36,7 +36,7 @@ local i2cOutputCallback = nil
 -- Midi to CV components
 local maxCvVoices = 1
 local midiSourceActiveNotes = {}
-local lastTriggeredVoice = 0
+local lastTriggeredVoice = 1
 
 -- CV to Midi components
 local cvNote = 1
@@ -381,7 +381,7 @@ end
 
 -------------------------------------------
 -- Callbacks for processing midi notes
-function ProcessMidiToCv1Voice(data)
+function ProcessMidiToCv1VoiceAndCc(data)
   local msg = midi.to_msg(data)
   if msg.ch ~= params:get("midi_to_cv_channel") then
     return
@@ -419,12 +419,20 @@ function ProcessMidiToCv2Voices(data)
 
   if msg.type:find("on") then
     AddMsgToMidiNoteQueue(midiSourceActiveNotes, msg)
+    local midiOctOffset = params:get("midi_to_cv_oct_offset")
+    local noteCv = util.linlin(0, 120, 0, 10, msg.note + midiOctOffset)
+
+    crow.output[2 * lastTriggeredVoice - 1].volts = noteCv
+    crow.output[2 * lastTriggeredVoice].volts = 5
+
+    lastTriggeredVoice = lastTriggeredVoice + 1
   elseif msg.type:find("off") then
     RemoveMsgFromMidiNoteQueue(midiSourceActiveNotes, msg)
+    crow.output[2 * lastTriggeredVoice].volts = 0
   end
 
-  if lastTriggeredVoice <= maxCvVoices then
-    lastTriggeredVoice = 0
+  if lastTriggeredVoice > maxCvVoices then
+    lastTriggeredVoice = 1
   end
 end
 
@@ -448,12 +456,13 @@ function SetCvOutputMode()
   end
 
   DumpMidiNoteQueue(midiSourceActiveNotes)
+  lastTriggeredVoice = 1
 
   local cvOutputMode = params:string("midi_to_cv_mode")
   cvOutputCallback = nil
   if cvOutputMode == "1 voice + cc 3 | 4" then
     maxCvVoices = 1
-    midiSourceDevice.event = ProcessMidiToCv1Voice
+    midiSourceDevice.event = ProcessMidiToCv1VoiceAndCc
     if midiSourceDevice.event == nil then
       print("failed to set cv output callback")
     end
