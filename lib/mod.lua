@@ -139,7 +139,7 @@ end
 -- Global Quantize param action callbacks
 function SetQuantizedScale()
   local note = params:string("crovvverter_root_note")
-  local scale = params:string("scale")
+  local scale = params:string("crovvverter_scale")
 
   notesInScale = MusicUtil.generate_scale(params:get("crovvverter_root_note") % 12, scale)
 end
@@ -410,7 +410,7 @@ function ProcessMidiToCv1VoiceAndCc(data)
   end
 end
 
--- TODO: Add 2 voices mode
+-- TODO: Add 2 voices modes; alternate, and stack
 function ProcessMidiToCv2Voices(data)
   local msg = midi.to_msg(data)
   if msg.ch ~= params:get("midi_to_cv_channel") then
