@@ -30,21 +30,16 @@ local midiDevices = {}
 local midiDeviceNames = {}
 local midiDestinationDevice = nil
 local midiSourceDevice = nil
-local cvOutputCallback = nil
-local i2cOutputCallback = nil
 
 -- Midi to CV components
-local maxCvVoices = 1
-local midiSourceActiveNotes = {}
-local lastTriggeredVoice = 1
+local lastTriggeredVoice = 6
 
 -- CV to Midi components
 local cvNote = 1
 local cvGate = false
 local lastSentMidiNote = nil
 local lastDestinationChannel = nil
-local lastSentCcMessages = { 1, 1 }
-local notesInScale = { 0 }
+
 
 function RefreshMidiDevices()
   midiDeviceNames = {}
@@ -63,14 +58,7 @@ midi.remove = function(dev) RefreshMidiDevices() end
 function CrowInit() end
 function SetCvInputState() end
 function SetMidiDestinationDevice() end
-function SetCvInputMode() end
 function SendMidiAllNoteAllChannelOff() end
-
-function SetCvOutputState() end
-function SetMidiSourceDevice() end
-function SetCvAndI2cOutputCallbacks() end
--- function SetQuantizedScale() end
-function SetGateMode() end
 function CrowResetOutputs() end
 
 function InitParams()
@@ -80,50 +68,17 @@ function InitParams()
 
   -------------------------------------
   -- CV to Midi params
-  params:add_group("cv_to_midi", "CV -> Midi/I2C", 6)
-  params:add {id = "cv_to_midi_enabled", name = "Enabled", type = "option", options = { "Yes", "No" }, action = function(x) SetCvInputState() end}
-  params:add {id = "cv_to_midi_destination", name = "Midi Destination", type = "option", options = midiDeviceNames, default = 1, action = function(x) SetCvInputState() end}
-  params:add {id = "cv_to_i2c_destination", name = "I2C Destination", type = "option", options = { "None", "Just Friends", "W/" }, action = function(x) SetCvInputState() end}
-  params:add {id = "cv_to_midi_channel", name = "Midi Channel", type = "number", min = 1, max = 16, default = 1, action = function(x) end}
+  params:add_group("cv_to_midi", "CV -> Midi/I2C", 3)
+  -- params:add_group("cv_to_midi", "CV -> Midi/I2C", 7)
+  params:add {id = "cv_input_enabled", name = "Enabled", type = "option", options = { "Yes", "No" }, action = function(x) SetCvInputState() end}
+  -- params:add {id = "cv_to_midi_enabled", name = "Midi Enabled", type = "option", options = { "No", "Yes" }, action = function(x) SetMidiDestinationDevice()() end}
+  -- params:add {id = "cv_to_midi_destination", name = "Midi Destination", type = "option", options = midiDeviceNames, default = 1, action = function(x) SetMidiDestinationDevice()() end}
+  -- params:add {id = "cv_to_midi_channel", name = "Midi Channel", type = "number", min = 1, max = 16, default = 1, action = function(x) end}
+  -- params:add {id = "cv_to_midi_panic", name = "Panic", type = "trigger", action = function(x) SendMidiAllNoteAllChannelOff() end}
+  params:add {id = "cv_to_i2c_destination", name = "I2C Destination", type = "option", options = { "Just Friends", "None" }, action = function(x) SetI2CMode() end}
   params:add_control("cv_to_midi_gate_threshold", "Gate threshold", controlspec.new(-5, 10, "lin", 0.1, 5, "v"))
-  params:add {id = "cv_to_midi_panic", name = "Panic", type = "trigger", action = function(x) SendMidiAllNoteAllChannelOff() end}
-
-  -------------------------------------
-  -- Midi to CV params
-  params:add_group("midi_to_cv", "Midi -> CV", 6)
-  -- params:add_group("midi_to_cv", "Midi -> CV", 15)
-  params:add {id = "midi_to_cv_enabled", name = "Enabled", type = "option", options = { "Yes", "No" }, action = function(x) SetCvOutputState() end}
-  params:add {id = "midi_to_cv_source", name = "Source", type = "option", options = midiDeviceNames, default = 1, action = function(x) SetCvOutputState() end}
-  params:add {id = "midi_to_cv_channel", name = "Channel", type = "number", min = 1, max = 16, default = 1, action = function(x) end}
-  params:add {id = "midi_to_cv_mode", name = "CV Output", type = "option", options = { "None", "1 voice + cc 3 | 4" }, action = function(x) SetCvOutputState() end}
-  -- params:add {id = "midi_to_cv_mode", name = "CV Output", type = "option", options = { "1 voice + cc 3 | 4", "2 voices", "4 pitches", "4 gates", "4 CCs", "None" }, action = function(x) SetCvOutputState() end}
-
-  -- params:add {id = "midi_to_cv_cc_1", name = "CC 1", type = "number", min = 0, max = 127, default = 0, action = function(x) end}
-  -- params:add {id = "midi_to_cv_cc_2", name = "CC 2", type = "number", min = 0, max = 127, default = 1, action = function(x) end}
-  -- params:add {id = "midi_to_cv_cc_3", name = "CC 3", type = "number", min = 0, max = 127, default = 2, action = function(x) end}
-  -- params:add {id = "midi_to_cv_cc_4", name = "CC 4", type = "number", min = 0, max = 127, default = 3, action = function(x) end}
-  
-  -- TODO: Add envelope class for gate outputs
-  -- params:add {id = "midi_to_cv_gate_mode", name = "Gate mode", type = "option", options = { "Gate", "Trigger", "ADSR", "ADR" }, action = function(x) SetGateMode() end}
-  -- params:add {id = "midi_to_cv_attack", name = "Attack", type = "control", controlspec = controlspec.new(0.5, 2000, "lin", 0.001, 1, "ms"), action = function(x) end}
-  -- params:add {id = "midi_to_cv_decay", name = "Decay", type = "control", controlspec = controlspec.new(0.5, 2000, "lin", 0.001, 200, "ms"), action = function(x) end}
-  -- params:add {id = "midi_to_cv_sustain", name = "Sustain", type = "control", controlspec = controlspec.new(-60, 0, "lin", 0.01, -20, "dB"), action = function(x) end}
-  -- params:add {id = "midi_to_cv_release", name = "Release", type = "control", controlspec = controlspec.new(0.5, 2000, "lin", 0.001, 50, "ms"), action = function(x) end}
-
-  params:add {id = "midi_to_cv_oct_offset", name = "Oct Offset", type = "control", controlspec = controlspec.new(-60, 0, "lin", 12, -48, "semitones"), action = function(x) end}
-  params:add {id = "midi_to_cv_panic", name = "Panic", type = "trigger", action = function(x) CrowResetOutputs() end}
-
-
-  -------------------------------------
-  -- Quantize Notes params
-  -- params:add_group("crovvverter_quantize_notes", "Quantize Notes", 3)
-  -- params:add {id = "crovvverter_quantizePitch", name = "Quantize Pitch to Scale", type = "option", options = { "No", "Yes" }, action = function(x) end}
-  -- params:add {id = "crovvverter_root_note", name = "Root Note", type = "option", options = noteNames, action = function(x) SetQuantizedScale() end}
-  -- params:add {id = "crovvverter_scale", name = "Scale", type = "option", options = { "major", "minor", "dorian" }, action = function(x) SetQuantizedScale() end}
 
   params:show("cv_to_midi")
-  params:show("midi_to_cv")
-  -- params:show("crovvverter_quantize_notes")
 
   params:bang()
   params:print()
@@ -131,68 +86,57 @@ function InitParams()
 end
 
 -------------------------------------------
--- Quantize param action callbacks
--- function SetQuantizedScale()
---   local note = params:string("crovvverter_root_note")
---   local scale = params:string("crovvverter_scale")
-
---   notesInScale = MusicUtil.generate_scale(params:get("crovvverter_root_note") % 12, scale)
--- end
-
--------------------------------------------
 -- CV to Midi param action callbacks
 function SetCvInputState()
-  if params:string("cv_to_midi_enabled") == "Yes" then
-    SetMidiDestinationDevice()
-    SetCvInputMode()
+  if params:string("cv_input_enabled") == "Yes" then
+    -- attach callbacks
+    crow.input[1].stream = ProcessPitchCv
+    crow.input[2].stream = ProcessGateCv
+    crow.input[1].mode("stream", 0.001, 0.01, "both")
+    crow.input[2].mode("stream", 0.001, 0.01, "both")
   else
     crow.input[1].mode("None")
     crow.input[2].mode("None")
-
-    if midiDestinationDevice ~= nil then
-      midiDestinationDevice.event = nil
-    end
-
-    midiDestinationDevice = nil
   end
 end
 
 function SetMidiDestinationDevice()
-  -- RefreshMidiDevices()
-  for i in pairs(midiDevices) do
-    local formattedDeviceName = i..": "..util.trim_string_to_width(midiDevices[i].name, 55)
-    local destinationDeviceName = params:string("cv_to_midi_destination")
-    if destinationDeviceName:find(formattedDeviceName) then
+  if params:string("cv_to_midi_enabled") == "Yes" then
+    -- RefreshMidiDevices()
+    for i in pairs(midiDevices) do
+      local formattedDeviceName = i..": "..util.trim_string_to_width(midiDevices[i].name, 55)
+      local destinationDeviceName = params:string("cv_to_midi_destination")
+      if destinationDeviceName:find(formattedDeviceName) then
 
-      if midiDestinationDevice ~= nil then
-        -- kill any dangling note on messages before switching devices
-        if lastSentMidiNote ~= nil and lastDestinationChannel ~= nil then
-          midiDestinationDevice:note_off(lastSentMidiNote, 100, lastDestinationChannel)
-          lastSentMidiNote = nil
-          lastDestinationChannel = nil
+        if midiDestinationDevice ~= nil then
+          -- kill any dangling note on messages before switching devices
+          if lastSentMidiNote ~= nil and lastDestinationChannel ~= nil then
+            midiDestinationDevice:note_off(lastSentMidiNote, 100, lastDestinationChannel)
+            lastSentMidiNote = nil
+            lastDestinationChannel = nil
+          end
         end
+
+        print("switched midi destination device to "..destinationDeviceName)
+        midiDestinationDevice = midi.connect(i)
+        break
+      else
+        print("Failed to set "..destinationDeviceName.." midi source device")
+
+        if midiDestinationDevice ~= nil then
+          midiDestinationDevice.event = nil
+        end
+  
+        midiDestinationDevice = nil
       end
-
-      print("switched midi destination device to "..destinationDeviceName)
-      midiDestinationDevice = midi.connect(i)
-      break
     end
-
-    print("Failed to set "..destinationDeviceName.." midi source device")
-
+  else
     if midiDestinationDevice ~= nil then
       midiDestinationDevice.event = nil
     end
 
     midiDestinationDevice = nil
   end
-end
-
-function SetCvInputMode()
-  crow.input[1].stream = ProcessPitchCv
-  crow.input[2].stream = ProcessGateCv
-  crow.input[1].mode("stream", 0.001, 0.01, "both")
-  crow.input[2].mode("stream", 0.001, 0.01, "both")
 end
 
 function SendMidiAllNoteOff(channel)
@@ -210,13 +154,6 @@ function SendMidiAllNoteAllChannelOff()
 end
 
 -------------------------------------------
--- CV/Midi callbacks
--- TODO: add quantized scales
-function QuantizeNoteToScale(note)
-  return MusicUtil.snap_note_to_array(note, notesInScale)
-end
-
--------------------------------------------
 -- CV to Midi callbacks
 function ProcessPitchCv(voltage)
   if cvNote < 0 then
@@ -231,221 +168,37 @@ function ProcessGateCv(voltage)
     print("note "..cvNote.." on")
     cvGate = true
 
-    if midiDestinationDevice ~= nil then
-      midiDestinationDevice:note_on(cvNote, 100, params:get("cv_to_midi_channel"))
-    end
+    -- if midiDestinationDevice ~= nil then
+    --   midiDestinationDevice:note_on(cvNote, 100, params:get("cv_to_midi_channel"))
+    -- end
 
-    if params:get("cv_to_i2c_destination") ~= "None" then
-      crow.ii.jf.play_note(cvNote);
-      crow.ii.jf.vtrigger(1, 100);
+    local i2cDestination = params:string("cv_to_i2c_destination")
+    if i2cDestination == "Just Friends" then
+      lastTriggeredVoice = (lastTriggeredVoice) % 6 + 1
+      print("last triggered voice: "..lastTriggeredVoice)
+      crow.ii.jf.play_voice(lastTriggeredVoice, (cvNote - 60) / 12 + 1, 90)
+      -- crow.ii.jf.vtrigger(lastTriggeredVoice, 90)
     end
 
     lastSentMidiNote = cvNote
-    lastDestinationChannel = params:get("cv_to_midi_channel")
+    -- lastDestinationChannel = params:get("cv_to_midi_channel")
+
   elseif cvGate == true and voltage <= params:get("cv_to_midi_gate_threshold") then
     if lastSentMidiNote ~= nil then
       print("note "..lastSentMidiNote.." off")
     end
     cvGate = false
 
-    if midiDestinationDevice ~= nil then
-      midiDestinationDevice:note_off(lastSentMidiNote, 100, lastDestinationChannel)
+    local i2cDestination = params:string("cv_to_i2c_destination")
+    if i2cDestination == "Just Friends" then
+      crow.ii.jf.trigger(lastTriggeredVoice, 0)
     end
+    -- if midiDestinationDevice ~= nil then
+    --   midiDestinationDevice:note_off(lastSentMidiNote, 100, lastDestinationChannel)
+    -- end
 
     lastSentMidiNote = nil
     lastDestinationChannel = nil
-  end
-end
-
--------------------------------------------
--- Midi to CV callbacks
-function SetCvOutputState()
-  if params:string("midi_to_cv_enabled") == "Yes" then
-    SetMidiSourceDevice()
-
-    if midiSourceDevice == nil then
-      print("Failed to set CV output state, midi source device is nil")
-      return
-    end
-  
-    SetCvOutputMode()
-    SetI2CMode()
-    CrowResetOutputs()
-
-    -- TODO: figure out how to bind both cv and i2c output callbacks to midi source events
-    -- midiSourceDevice.event = function(x)
-    --   -- attach CV output callback
-    --   if cvOutputCallback ~= nil then
-    --     print("trigger cv output callback")
-    --     cvOutputCallback(x)
-    --   end
-  
-    --   -- attach i2c output callback
-    --   if i2cOutputCallback ~= nil then
-    --     i2cOutputCallback(x)
-    --   end
-    -- end
-  else
-    if midiSourceDevice ~= nil then
-      midiSourceDevice.event = nil
-    end
-
-    midiSourceDevice = nil
-  end
-end
-
-function SetMidiSourceDevice()
-  -- RefreshMidiDevices()
-  for i in pairs(midiDevices) do
-    local formattedDeviceName = i..": "..util.trim_string_to_width(midiDevices[i].name, 55)
-    local sourceDeviceName = params:string("midi_to_cv_source")
-    if formattedDeviceName:find(sourceDeviceName) then
-
-      -- TODO: Address dangling midi note on messages before switching source device
-      if midiSourceDevice ~= nil then
-      end
-
-      print("switched midi source device to "..sourceDeviceName)
-      midiSourceDevice = midi.connect(i)
-      break
-    end
-
-    print("Failed to set "..sourceDeviceName.." midi source device")
-
-    if midiSourceDevice ~= nil then
-      midiSourceDevice.event = nil
-    end
-
-    midiSourceDevice = nil
-  end
-end
-
-function SetGateMode()
-end
-
--------------------------------------------
--- Midi source note queue functions
-function DumpMidiNoteQueue(noteQueue)
-  noteQueue = nil
-  noteQueue = {}
-end
-
-function AddMsgToMidiNoteQueue(noteQueue, msg)
-  print("Adding "..msg.type.." "..msg.note.." "..msg.ch.." from note table.")
-  table.insert(noteQueue, msg)
-end
-
-function RemoveMsgFromMidiNoteQueue(noteQueue, msg)
-  for i in ipairs(noteQueue) do
-    if noteQueue[i].ch == msg.ch and noteQueue[i].note == msg.note then
-      print("Removing "..noteQueue[i].type.." "..noteQueue[i].note.." "..noteQueue[i].ch.." from note table.")
-      table.remove(noteQueue, i)
-      break
-    end
-  end
-end
-
--------------------------------------------
--- Callbacks for processing midi notes
-function ProcessMidiToCv1VoiceAndCc(data)
-  local msg = midi.to_msg(data)
-  if msg.ch ~= params:get("midi_to_cv_channel") then
-    return
-  end
-
-  if msg.type:find("note") then
-    local midiOctOffset = params:get("midi_to_cv_oct_offset")
-    local noteCv = util.linlin(0, 120, 0, 10, msg.note + midiOctOffset)
-    crow.output[1].volts = noteCv
-
-    if msg.type:find("on") then
-      crow.output[2].volts = 5
-      AddMsgToMidiNoteQueue(midiSourceActiveNotes, msg)
-    else
-      crow.output[2].volts = 0
-      RemoveMsgFromMidiNoteQueue(midiSourceActiveNotes, msg)
-    end
-  elseif msg.type == "cc" then
-    -- if msg.cc == params:get("midi_to_cv_cc_3") then
-    --   print("cc: "..msg.cc.." val: "..msg.val)
-    --   crow.output[3].volts = util.linlin(0, 127, 0, 5, 0.001, msg.val)
-    -- elseif msg.cc == params:get("midi_to_cv_cc_4") then
-    --   print("cc: "..msg.cc.." val: "..msg.val)
-    --   crow.output[4].volts = util.linlin(0, 127, 0, 5, 0.001, msg.val)
-    -- end
-  end
-end
-
--- TODO: Add 2 voices modes; alternate, and stack
-function ProcessMidiToCv2Voices(data)
-  local msg = midi.to_msg(data)
-  if msg.ch ~= params:get("midi_to_cv_channel") then
-    return
-  end
-
-  if msg.type:find("on") then
-    AddMsgToMidiNoteQueue(midiSourceActiveNotes, msg)
-    local midiOctOffset = params:get("midi_to_cv_oct_offset")
-    local noteCv = util.linlin(0, 120, 0, 10, msg.note + midiOctOffset)
-
-    crow.output[2 * lastTriggeredVoice - 1].volts = noteCv
-    crow.output[2 * lastTriggeredVoice].volts = 5
-
-    lastTriggeredVoice = lastTriggeredVoice + 1
-  elseif msg.type:find("off") then
-    RemoveMsgFromMidiNoteQueue(midiSourceActiveNotes, msg)
-    crow.output[2 * lastTriggeredVoice].volts = 0
-  end
-
-  if lastTriggeredVoice > maxCvVoices then
-    lastTriggeredVoice = 1
-  end
-end
-
--- TODO: Add 4 pitches mode
-function ProcessMidiToCv4Pitches(data)
-end
-
--- TODO: Add 4 gates mode
-function ProcessMidiToCv4Gates(data)
-end
-
--- TODO: Add CC output mode
-function ProcessMidiToCv4Ccs(data)
-end
-
-function SetCvOutputMode()
-  -- identify cv output callback
-  if midiSourceDevice == nil then
-    print("Failed to set CV output mode midi source device is nil")
-    return
-  end
-
-  DumpMidiNoteQueue(midiSourceActiveNotes)
-  lastTriggeredVoice = 1
-
-  local cvOutputMode = params:string("midi_to_cv_mode")
-  cvOutputCallback = nil
-  if cvOutputMode == "1 voice + cc 3 | 4" then
-    maxCvVoices = 1
-    midiSourceDevice.event = ProcessMidiToCv1VoiceAndCc
-    if midiSourceDevice.event == nil then
-      print("failed to set cv output callback")
-    end
-  elseif cvOutputMode == "2 voices" then
-    maxCvVoices = 2
-    midiSourceDevice.event = ProcessMidiToCv2Voices
-  elseif cvOutputMode == "4 pitches" then
-    maxCvVoices = 4
-    midiSourceDevice.event = ProcessMidiToCv4Pitches
-  elseif cvOutputMode == "4 gates" then
-    maxCvVoices = 4
-    midiSourceDevice.event = ProcessMidiToCv4Gates
-  elseif cvOutputMode == "4 CCs" then
-    maxCvVoices = 4
-    midiSourceDevice.event = ProcessMidiToCv4Ccs
-  elseif cvOutputMode == "None" then
-    midiSourceDevice.event = nil
   end
 end
 
@@ -455,9 +208,10 @@ function SetI2CMode()
   local i2cMode = params:string("cv_to_i2c_destination")
   i2cOutputCallback = nil
   if i2cMode == "Just Friends" then
+    crow.ii.pullup(false)
+    crow.ii.jf.mode(0)
     crow.ii.pullup(true)
     crow.ii.jf.mode(1)
-  elseif i2cMode == "W/" then
   elseif i2cMode == "None" then
     crow.ii.pullup(false)
   end
@@ -471,8 +225,6 @@ mod.hook.register("script_pre_init", "crovvverter_script_pre_init", function()
   params:bang()
   _menu.rebuild_params()
 
-  SetCvOutputState()
+  -- SetCvOutputState()
   SetCvInputState()
-
-  -- params:set("midi_to_cv_mode", "2 voices")
 end)
