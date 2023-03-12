@@ -68,13 +68,12 @@ function InitParams()
 
   -------------------------------------
   -- CV to Midi params
-  params:add_group("cv_to_midi", "CV -> Midi/I2C", 3)
-  -- params:add_group("cv_to_midi", "CV -> Midi/I2C", 7)
+  params:add_group("cv_to_midi", "CV -> Midi/I2C", 7)
   params:add {id = "cv_input_enabled", name = "Enabled", type = "option", options = { "Yes", "No" }, action = function(x) SetCvInputState() end}
-  -- params:add {id = "cv_to_midi_enabled", name = "Midi Enabled", type = "option", options = { "No", "Yes" }, action = function(x) SetMidiDestinationDevice()() end}
-  -- params:add {id = "cv_to_midi_destination", name = "Midi Destination", type = "option", options = midiDeviceNames, default = 1, action = function(x) SetMidiDestinationDevice()() end}
-  -- params:add {id = "cv_to_midi_channel", name = "Midi Channel", type = "number", min = 1, max = 16, default = 1, action = function(x) end}
-  -- params:add {id = "cv_to_midi_panic", name = "Panic", type = "trigger", action = function(x) SendMidiAllNoteAllChannelOff() end}
+  params:add {id = "cv_to_midi_enabled", name = "Midi Enabled", type = "option", options = { "No", "Yes" }, action = function(x) SetMidiDestinationDevice() end}
+  params:add {id = "cv_to_midi_destination", name = "Midi Destination", type = "option", options = midiDeviceNames, default = 1, action = function(x) SetMidiDestinationDevice() end}
+  params:add {id = "cv_to_midi_channel", name = "Midi Channel", type = "number", min = 1, max = 16, default = 1, action = function(x) end}
+  params:add {id = "cv_to_midi_panic", name = "Panic", type = "trigger", action = function(x) SendMidiAllNoteAllChannelOff() end}
   params:add {id = "cv_to_i2c_destination", name = "I2C Destination", type = "option", options = { "Just Friends", "None" }, action = function(x) SetI2CMode() end}
   params:add_control("cv_to_midi_gate_threshold", "Gate threshold", controlspec.new(-5, 10, "lin", 0.1, 5, "v"))
 
@@ -168,16 +167,15 @@ function ProcessGateCv(voltage)
     print("note "..cvNote.." on")
     cvGate = true
 
-    -- if midiDestinationDevice ~= nil then
-    --   midiDestinationDevice:note_on(cvNote, 100, params:get("cv_to_midi_channel"))
-    -- end
+    if midiDestinationDevice ~= nil then
+      midiDestinationDevice:note_on(cvNote, 100, params:get("cv_to_midi_channel"))
+    end
 
     local i2cDestination = params:string("cv_to_i2c_destination")
     if i2cDestination == "Just Friends" then
       lastTriggeredVoice = (lastTriggeredVoice) % 6 + 1
       print("last triggered voice: "..lastTriggeredVoice)
       crow.ii.jf.play_voice(lastTriggeredVoice, (cvNote - 60) / 12 + 1, 90)
-      -- crow.ii.jf.vtrigger(lastTriggeredVoice, 90)
     end
 
     lastSentMidiNote = cvNote
@@ -193,9 +191,10 @@ function ProcessGateCv(voltage)
     if i2cDestination == "Just Friends" then
       crow.ii.jf.trigger(lastTriggeredVoice, 0)
     end
-    -- if midiDestinationDevice ~= nil then
-    --   midiDestinationDevice:note_off(lastSentMidiNote, 100, lastDestinationChannel)
-    -- end
+
+    if midiDestinationDevice ~= nil then
+      midiDestinationDevice:note_off(lastSentMidiNote, 100, lastDestinationChannel)
+    end
 
     lastSentMidiNote = nil
     lastDestinationChannel = nil
